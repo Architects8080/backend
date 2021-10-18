@@ -6,6 +6,9 @@ import { CreateChannelDto } from './dto/create-channel.dto';
 import { Channel, ChannelMember } from './entity/channel.entity';
 import * as bcrypt from 'bcrypt';
 import { UpdateChannelDto } from './dto/update-channel.dto';
+import { Penalty, Permission } from './channel.type';
+import { SocketUser } from 'src/socket/socket-user';
+import { Server } from 'socket.io';
 
 @Injectable()
 export class ChannelService {
@@ -19,37 +22,40 @@ export class ChannelService {
   channelMap: Map<number, ChannelListDto> = new Map();
 
   async onModuleInit() {
-    await this.getAllChannelDB();
+    await this.updateChannelMap();
   }
 
-  async getAllChannelDB() {
+  async updateChannelMap() {
     const channels: Channel[] = await this.channelRepository.find();
-    if (!channels) return;
+
     for (const channel of channels) {
-      const instance = new ChannelListDto();
-      instance.roomId = channel.id;
-      instance.title = channel.title;
-      instance.isProtected =
-        channel.type === 2 ? 2 : channel.type === 1 ? 1 : 0;
-      const memCnt = await this.channelMemberRepository.findAndCount({
+      var toUpdateChannel = this.channelMap.get(channel.id);
+      const memberCount = await this.channelMemberRepository.count({
         where: {
           channelID: channel.id,
         },
-        join: {
-          alias: 'channel_member',
-          leftJoinAndSelect: {
-            channel: 'channel_member.channel',
-          },
-        },
       });
-      instance.memberCount = memCnt[1];
-      this.channelMap.set(instance.roomId, instance);
+
+      if (!toUpdateChannel) {
+        const instance = new ChannelListDto();
+
+        instance.roomId = channel.id;
+        instance.title = channel.title;
+        instance.isProtected = channel.type; //TODO : edit name
+        instance.memberCount = memberCount;
+        this.channelMap.set(instance.roomId, instance);
+      }
+      else if (toUpdateChannel.memberCount != memberCount) {
+        //update memberCount
+        this.channelMap.delete(channel.id);
+        toUpdateChannel.memberCount = memberCount;
+        this.channelMap.set(toUpdateChannel.roomId, toUpdateChannel);
+      }
     }
   }
 
   async getAllChannel() {
-    this.channelMap.clear();
-    await this.getAllChannelDB();
+    await this.updateChannelMap();
     return [...this.channelMap.values()];
   }
 
@@ -67,79 +73,100 @@ export class ChannelService {
         },
       },
     });
+
     for (const channel of channels) {
       const instance = new ChannelListDto();
-      instance.roomId = channel.channelID;
-      instance.title = channel.channel.title;
-      instance.isProtected =
-        channel.channel.type === 2 ? 2 : channel.channel.type === 1 ? 1 : 0;
-      const memCnt = await this.channelMemberRepository.findAndCount({
+      const memberCount = await this.channelMemberRepository.count({
         where: {
           channelID: channel.channelID,
         },
-        join: {
-          alias: 'channel_member',
-          leftJoinAndSelect: {
-            channel: 'channel_member.channel',
-          },
-        },
       });
-      instance.memberCount = memCnt[1];
+
+      instance.roomId = channel.channelID;
+      instance.title = channel.channel.title;
+      instance.isProtected = channel.channel.type;
+      instance.memberCount = memberCount;
       myChannel.push(instance);
     }
     return myChannel;
   }
 
   async createChannel(channelData: CreateChannelDto) {
+
+    // channel create
     const newChannel: Channel = this.channelRepository.create({
       title: channelData.title,
       type: channelData.type,
       password: channelData.password,
     });
     await this.channelRepository.insert(newChannel);
-    const newChannelMember: ChannelMember =
-      this.channelMemberRepository.create();
-    newChannelMember.userID = channelData.ownerId;
-    const tmpChannelId = await this.channelRepository.find({
+
+    // add create user to owner
+    const owner: ChannelMember = this.channelMemberRepository.create();
+    const newChannelId = await this.channelRepository.find({
       select: ['id'],
       order: {
         id: 'DESC',
       },
       take: 1,
     });
-    newChannelMember.channelID = tmpChannelId[0].id;
-    newChannelMember.permissionType = 2;
-    newChannelMember.penalty = 0;
-    await this.channelMemberRepository.insert(newChannelMember);
-    return tmpChannelId[0].id;
+    owner.userID = channelData.ownerId;
+    owner.channelID = newChannelId[0].id;
+    owner.permissionType = Permission.OWNER;
+    owner.penalty = Penalty.NONE;
+    await this.channelMemberRepository.insert(owner);
+
+    //update map
+    await this.updateChannelMap();
+    return owner.channelID;
   }
 
-  async joinChannel(roomId: number, userId: number) {
-    const myChannel = await this.getMyChannel(userId);
-    if (myChannel.find((myChannel) => myChannel.roomId == roomId)) {
-    } else {
-      const newChannelMember: ChannelMember =
-        this.channelMemberRepository.create();
-      newChannelMember.userID = userId;
+  async joinChannel(roomId: number, client: SocketUser, server: Server) {
+    client.join(roomId.toString());
+    const myChannel = await this.getMyChannel(client.user.id);
+
+    if (!myChannel.find((myChannel) => myChannel.roomId == roomId)) {
+      const newChannelMember: ChannelMember = this.channelMemberRepository.create();
+      newChannelMember.userID = client.user.id;
       newChannelMember.channelID = roomId;
-      newChannelMember.permissionType = 0;
-      newChannelMember.penalty = 0;
+      newChannelMember.permissionType = Permission.MEMBER;
+      newChannelMember.penalty = Penalty.NONE;
       await this.channelMemberRepository.insert(newChannelMember);
+
+      const newMember = {
+        id: client.user.id,
+        nickname: client.user.nickname.toString(),
+        avatar: client.user.avatar.toString(),
+        status: client.user.status,
+      };
+      server.to(roomId.toString()).emit('channelMemberAdd', newMember);
     }
+    await this.updateChannelMap();
   }
 
-  async checkPassword(roomId: number, password: string) {
+  async checkPassword(userId: number, roomId: number, password: string) {
     try {
       const hashedpw = await this.channelRepository.findOne({
         where: {
           id: roomId,
         },
       });
-      const isPasswordMatching = await bcrypt.compare(
+      const isPasswordMatched = await bcrypt.compare(
         password,
         hashedpw.password,
       );
-      return isPasswordMatching ? true : false;
+
+      //add client to chatroom?
+      if (isPasswordMatched) {
+        console.log(`password accepted!!`);
+        const newChannelMember: ChannelMember = this.channelMemberRepository.create();
+        newChannelMember.userID = userId;
+        newChannelMember.channelID = roomId;
+        newChannelMember.permissionType = Permission.MEMBER;
+        newChannelMember.penalty = Penalty.NONE;
+        await this.channelMemberRepository.insert(newChannelMember);
+      }
+      return isPasswordMatched;
     } catch (error) {
       throw new HttpException(
         'Wrong credentials provided',
@@ -153,12 +180,16 @@ export class ChannelService {
       userID: userId,
       channelID: roomId,
     });
-    const memCnt = await this.channelMemberRepository.count({
+    const memberCount = await this.channelMemberRepository.count({
       where: {
         channelID: roomId,
       },
     });
-    if (memCnt === 0) await this.channelRepository.delete({ id: roomId });
+    if (memberCount == 0) {
+      await this.channelRepository.delete({ id: roomId });
+      this.channelMap.delete(Number(roomId));
+    }
+    await this.updateChannelMap();
   }
 
   async updateChannel(roomId: number, updateData: UpdateChannelDto) {
@@ -168,6 +199,9 @@ export class ChannelService {
       updateChannel[key] = updateData[key];
     }
     await this.channelRepository.save(updateChannel);
+
+    //update map
+    await this.updateChannelMap();
   }
 
   async getChannelMember(roomId: number) {
@@ -184,6 +218,8 @@ export class ChannelService {
       },
     });
     const obj = member.map(({ userID, ...keepAttrs }) => keepAttrs);
+
+    console.log(`get ChannelMember obj : `, obj);
     const result = [];
     obj.map((item) => {
       result.push({

@@ -1,4 +1,4 @@
-import { Inject, UseGuards } from '@nestjs/common';
+import { Inject, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -32,12 +32,12 @@ export class ChannelGateway
   @WebSocketServer() server: Server;
 
   async handleConnection(client: SocketUser) {
-    console.log(`Client ${client.id} Connected to channel`);
     try {
       const token = cookieExtractor(client);
       const userPayload = this.jwtService.verify(token);
       const user = await this.jwtStrategy.validate(userPayload);
       client.user = user;
+      console.log(`Client ${client.user.nickname} Connected to channel`);
       console.log(client.rooms);
       console.log(user.id, user.intraLogin);
       this.socketUserService.addSocket(client);
@@ -46,14 +46,15 @@ export class ChannelGateway
       client.disconnect(true);
     }
   }
+
   async handleDisconnect(client: SocketUser) {
-    console.log(`Client ${client.id} Disconnected`);
     try {
       const token = cookieExtractor(client);
       const userPayload = this.jwtService.verify(token);
       const user = await this.jwtStrategy.validate(userPayload);
       client.user = user;
-      this.socketUserService.removeSocket(client);
+    console.log(`Client ${client.user.nickname} Disconnected`);
+    this.socketUserService.removeSocket(client);
     } catch (error) {}
   }
 
@@ -64,34 +65,27 @@ export class ChannelGateway
   ) {
     data.ownerId = client.user.id;
     const channelId = await this.channelService.createChannel(data);
-    this.server.emit('channelCreated', channelId);
+    client.emit('channelCreated', channelId);
   }
 
   @SubscribeMessage('joinChannel')
   async joinChannel(
-    @MessageBody() data: any,
+    @MessageBody(new ParseIntPipe()) roomId: any,
     @ConnectedSocket() client: SocketUser,
   ) {
-    if (this.channelService.channelMap.get(+data).isProtected > 0) {
+    console.log(`map : `, this.channelService.channelMap.get((roomId)))
+    if (this.channelService.channelMap.get(roomId).isProtected > 0) {
+      //RoomType is Protected or Private
       const myChannel = await this.channelService.getMyChannel(client.user.id);
-      if (myChannel.find((myChannel) => myChannel.roomId == data)) {
-        client.join(data.toString());
-        this.channelService.joinChannel(data, client.user.id);
-      } else {
-        this.server.emit('joinRefused', false);
-      }
-    } else {
-      client.join(data.toString());
-      const newMember = {
-        id: client.user.id,
-        nickname: client.user.nickname.toString(),
-        avatar: client.user.avatar.toString(),
-        status: client.user.status,
-      };
-      this.server.to(data.toString()).emit('channelMemberAdd', newMember);
-      this.channelService.joinChannel(data, client.user.id);
-      console.log(client.rooms);
-    }
+
+      if (!myChannel.find((myChannel) => myChannel.roomId == roomId)) {
+        this.server.emit('joinRefused');
+        return ;
+      } else {} //join to find channel.
+    } else {} 
+    
+    //RoomType is Public or Protected/Private & accepted case.
+    this.channelService.joinChannel(roomId, client, this.server);
   }
 
   @SubscribeMessage('msgToChannel')

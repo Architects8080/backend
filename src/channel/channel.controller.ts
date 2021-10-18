@@ -3,6 +3,7 @@ import {
   Controller,
   Get,
   Param,
+  ParseIntPipe,
   Post,
   Put,
   Req,
@@ -12,6 +13,7 @@ import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { Roles } from 'src/channel/guard/roles.decorator';
 import { RolesGuard } from 'src/channel/guard/roles.guard';
 import { ChannelService } from './channel.service';
+import { ChannelType } from './channel.type';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -22,27 +24,28 @@ export class ChannelController {
   @Get()
   async getAllChannel() {
     const allChannels = await this.channelService.getAllChannel();
-    return allChannels.filter((channel) => channel.isProtected !== 1);
+    return allChannels.filter((channel) => channel.isProtected !== ChannelType.PRIVATE);
   }
 
   @Get('me')
   async getMyChannel(@Req() req) {
-    return this.channelService.getMyChannel(req.user.id);
+    return await this.channelService.getMyChannel(req.user.id);
   }
 
   @Get(':id')
   getOneChannel(@Param('id') roomId: number) {
-    return this.channelService.channelMap.get(+roomId);
+    return this.channelService.channelMap.get(roomId);
   }
 
   @Get('/members/:id')
-  async getChannelMember(@Param('id') roomId: number) {
-    return this.channelService.getChannelMember(+roomId);
+  async getChannelMember(@Param('id', ParseIntPipe) roomId: number) {
+    console.log(`getChannelMember called`);
+    return this.channelService.getChannelMember(roomId);
   }
 
   @Post('enter-pw')
-  async logIn(@Body() req) {
-    return this.channelService.checkPassword(req.roomId, req.password);
+  async login(@Body() req) {
+    return this.channelService.checkPassword(req.userId, req.roomId, req.password);
   }
 
   @Put(':id')
