@@ -34,7 +34,9 @@ export class ChannelController {
   }
 
   @Get(':id')
-  getOneChannel(@Param('id') roomId: number) {
+  getOneChannel(@Param('id', ParseIntPipe) roomId: number) {
+    console.log(`get one channel?`)
+    console.log(this.channelService.channelMap.get(roomId))
     return this.channelService.channelMap.get(roomId);
   }
 
@@ -56,12 +58,20 @@ export class ChannelController {
     return await this.channelService.createChannel(createData);
   }
 
-  @Put(':id')
+  @Put('update/:id')
   @Roles('owner')
   async updateChannel(
     @Param('id') roomId: number,
     @Body() updateData: UpdateChannelDto,
   ) {
     return await this.channelService.updateChannel(roomId, updateData);
+  }
+
+  @Get('invite/:id')
+  async inviteMember(
+    @Param('id', ParseIntPipe) roomId: number,
+    @Body() nickname: string,
+  ) {
+    return await this.channelService.inviteMember(roomId, nickname);
   }
 }

@@ -1,6 +1,6 @@
 import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Code, Repository } from 'typeorm';
 import { ChannelListDto } from './dto/channel-list.dto';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { Channel, ChannelMember } from './entity/channel.entity';
@@ -9,6 +9,7 @@ import { UpdateChannelDto } from './dto/update-channel.dto';
 import { Penalty, Permission } from './channel.type';
 import { SocketUser } from 'src/socket/socket-user';
 import { Server } from 'socket.io';
+import { UserService } from 'src/user/user.service';
 
 @Injectable()
 export class ChannelService {
@@ -17,6 +18,7 @@ export class ChannelService {
     private readonly channelRepository: Repository<Channel>,
     @InjectRepository(ChannelMember)
     private channelMemberRepository: Repository<ChannelMember>,
+    private readonly userService: UserService,
   ) {}
 
   channelMap: Map<number, ChannelListDto> = new Map();
@@ -49,6 +51,16 @@ export class ChannelService {
         //update memberCount
         this.channelMap.delete(channel.id);
         toUpdateChannel.memberCount = memberCount;
+        this.channelMap.set(toUpdateChannel.roomId, toUpdateChannel);
+      }else if (toUpdateChannel.isProtected != channel.type) {
+        //update type
+        this.channelMap.delete(channel.id);
+        toUpdateChannel.isProtected = channel.type;
+        this.channelMap.set(toUpdateChannel.roomId, toUpdateChannel);
+      }else if (toUpdateChannel.title != channel.title) {
+        //update title
+        this.channelMap.delete(channel.id);
+        toUpdateChannel.title = channel.title;
         this.channelMap.set(toUpdateChannel.roomId, toUpdateChannel);
       }
     }
@@ -120,36 +132,6 @@ export class ChannelService {
     await this.updateChannelMap();
     return owner.channelID;
   }
-
-  // async createChannel(channelData: CreateChannelDto) {
-
-  //   // channel create
-  //   const newChannel: Channel = this.channelRepository.create({
-  //     title: channelData.title,
-  //     type: channelData.type,
-  //     password: channelData.password,
-  //   });
-  //   await this.channelRepository.insert(newChannel);
-
-  //   // add create user to owner
-  //   const owner: ChannelMember = this.channelMemberRepository.create();
-  //   const newChannelId = await this.channelRepository.find({
-  //     select: ['id'],
-  //     order: {
-  //       id: 'DESC',
-  //     },
-  //     take: 1,
-  //   });
-  //   owner.userID = channelData.ownerId;
-  //   owner.channelID = newChannelId[0].id;
-  //   owner.permissionType = Permission.OWNER;
-  //   owner.penalty = Penalty.NONE;
-  //   await this.channelMemberRepository.insert(owner);
-
-  //   //update map
-  //   await this.updateChannelMap();
-  //   return owner.channelID;
-  // }
 
   async joinChannel(roomId: number, client: SocketUser, server: Server) {
     client.join(roomId.toString());
@@ -231,11 +213,13 @@ export class ChannelService {
 
   async updateChannel(roomId: number, updateData: UpdateChannelDto) {
     const updateChannel = await this.channelRepository.findOne(roomId);
-    console.log(updateChannel);
+    console.log(`before : `, updateChannel);
+    console.log(`updateData : `, updateData);
     for (const key in updateData) {
       updateChannel[key] = updateData[key];
     }
     await this.channelRepository.save(updateChannel);
+    console.log(`update : `, updateChannel);
 
     //update map
     await this.updateChannelMap();
@@ -267,5 +251,15 @@ export class ChannelService {
       });
     });
     return result;
+  }
+
+  async inviteMember(roomId: number, nickname: string) {
+    var errorCode = 0;
+
+    try {
+      const user = await this.userService.getUserByNickname(nickname);
+    } catch (e) {
+
+    }
   }
 }
