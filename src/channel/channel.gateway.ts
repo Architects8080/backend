@@ -58,34 +58,30 @@ export class ChannelGateway
     } catch (error) {}
   }
 
-  @SubscribeMessage('createChannel')
-  async createChannel(
-    @MessageBody() data: CreateChannelDto,
-    @ConnectedSocket() client: SocketUser,
-  ) {
-    data.ownerId = client.user.id;
-    const channelId = await this.channelService.createChannel(data);
-    client.emit('channelCreated', channelId);
-  }
-
   @SubscribeMessage('joinChannel')
   async joinChannel(
     @MessageBody(new ParseIntPipe()) roomId: any,
     @ConnectedSocket() client: SocketUser,
   ) {
-    console.log(`map : `, this.channelService.channelMap.get((roomId)))
     if (this.channelService.channelMap.get(roomId).isProtected > 0) {
       //RoomType is Protected or Private
       const myChannel = await this.channelService.getMyChannel(client.user.id);
-
       if (!myChannel.find((myChannel) => myChannel.roomId == roomId)) {
-        this.server.emit('joinRefused');
+        client.emit('joinRefused');
         return ;
-      } else {} //join to find channel.
-    } else {} 
-    
+      }
+    }
     //RoomType is Public or Protected/Private & accepted case.
     this.channelService.joinChannel(roomId, client, this.server);
+  }
+
+  @SubscribeMessage('leaveChannel')
+  leaveChannel(
+    @MessageBody() data: any,
+    @ConnectedSocket() client: SocketUser,
+  ) {
+    this.channelService.leaveChannel(data, client.user.id);
+    this.server.to(data).emit('channelMemberRemove', client.user.id);
   }
 
   @SubscribeMessage('msgToChannel')
@@ -98,14 +94,5 @@ export class ChannelGateway
       name: client.user.nickname,
     };
     this.server.to(data.roomId).emit('msgToClient', payload);
-  }
-
-  @SubscribeMessage('leaveChannel')
-  leaveChannel(
-    @MessageBody() data: any,
-    @ConnectedSocket() client: SocketUser,
-  ) {
-    this.channelService.leaveChannel(data, client.user.id);
-    this.server.to(data).emit('channelMemberRemove', client.user.id);
   }
 }

@@ -121,11 +121,50 @@ export class ChannelService {
     return owner.channelID;
   }
 
+  // async createChannel(channelData: CreateChannelDto) {
+
+  //   // channel create
+  //   const newChannel: Channel = this.channelRepository.create({
+  //     title: channelData.title,
+  //     type: channelData.type,
+  //     password: channelData.password,
+  //   });
+  //   await this.channelRepository.insert(newChannel);
+
+  //   // add create user to owner
+  //   const owner: ChannelMember = this.channelMemberRepository.create();
+  //   const newChannelId = await this.channelRepository.find({
+  //     select: ['id'],
+  //     order: {
+  //       id: 'DESC',
+  //     },
+  //     take: 1,
+  //   });
+  //   owner.userID = channelData.ownerId;
+  //   owner.channelID = newChannelId[0].id;
+  //   owner.permissionType = Permission.OWNER;
+  //   owner.penalty = Penalty.NONE;
+  //   await this.channelMemberRepository.insert(owner);
+
+  //   //update map
+  //   await this.updateChannelMap();
+  //   return owner.channelID;
+  // }
+
   async joinChannel(roomId: number, client: SocketUser, server: Server) {
     client.join(roomId.toString());
-    const myChannel = await this.getMyChannel(client.user.id);
+    const newMember = {
+      id: client.user.id,
+      nickname: client.user.nickname.toString(),
+      avatar: client.user.avatar.toString(),
+      status: client.user.status,
+    };
 
-    if (!myChannel.find((myChannel) => myChannel.roomId == roomId)) {
+    const myChannel = await this.getMyChannel(client.user.id);
+    const isJoinedChannel = myChannel.find((myChannel) => myChannel.roomId == roomId);
+
+    if (!isJoinedChannel) {
+      // add client to new channel
       const newChannelMember: ChannelMember = this.channelMemberRepository.create();
       newChannelMember.userID = client.user.id;
       newChannelMember.channelID = roomId;
@@ -133,12 +172,9 @@ export class ChannelService {
       newChannelMember.penalty = Penalty.NONE;
       await this.channelMemberRepository.insert(newChannelMember);
 
-      const newMember = {
-        id: client.user.id,
-        nickname: client.user.nickname.toString(),
-        avatar: client.user.avatar.toString(),
-        status: client.user.status,
-      };
+      server.to(roomId.toString()).emit('channelMemberAdd', newMember);
+    } else if (isJoinedChannel.isProtected > 0){
+      //update to private room member
       server.to(roomId.toString()).emit('channelMemberAdd', newMember);
     }
     await this.updateChannelMap();
@@ -156,7 +192,7 @@ export class ChannelService {
         hashedpw.password,
       );
 
-      //add client to chatroom?
+      //is Password Matched, add client to chatroom
       if (isPasswordMatched) {
         console.log(`password accepted!!`);
         const newChannelMember: ChannelMember = this.channelMemberRepository.create();
@@ -167,6 +203,7 @@ export class ChannelService {
         await this.channelMemberRepository.insert(newChannelMember);
       }
       return isPasswordMatched;
+
     } catch (error) {
       throw new HttpException(
         'Wrong credentials provided',

@@ -14,6 +14,7 @@ import { Roles } from 'src/channel/guard/roles.decorator';
 import { RolesGuard } from 'src/channel/guard/roles.guard';
 import { ChannelService } from './channel.service';
 import { ChannelType } from './channel.type';
+import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -48,12 +49,19 @@ export class ChannelController {
     return this.channelService.checkPassword(req.userId, req.roomId, req.password);
   }
 
+  @Post('create')
+  async createChannel(
+    @Body() createData: CreateChannelDto,
+  ) {
+    return await this.channelService.createChannel(createData);
+  }
+
   @Put(':id')
   @Roles('owner')
   async updateChannel(
     @Param('id') roomId: number,
     @Body() updateData: UpdateChannelDto,
   ) {
-    return this.channelService.updateChannel(roomId, updateData);
+    return await this.channelService.updateChannel(roomId, updateData);
   }
 }
