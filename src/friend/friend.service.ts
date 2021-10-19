@@ -7,13 +7,16 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToClass, serialize } from 'class-transformer';
 import { BlockService } from 'src/block/block.service';
 import { Block } from 'src/block/entity/block.entity';
 import { CommunityGateway } from 'src/community/community.gateway';
+import { mergeUserAndStatus, StatusUser } from 'src/community/data/status-user';
 import { StatusService } from 'src/community/status.service';
 import { Friend } from 'src/friend/entity/friend.entity';
 import { NotificationType } from 'src/notification/entity/notification.entity';
 import { NotificationService } from 'src/notification/notification.service';
+import { User } from 'src/user/entity/user.entity';
 import { UserService } from 'src/user/user.service';
 import { Repository } from 'typeorm';
 import { RequestFriendResult } from './data/request-friend.result';
@@ -44,6 +47,8 @@ export class FriendService {
       userId: dto.otherId,
       otherId: dto.userId,
     });
+    this.communityGateway.removeFriendUser(dto.otherId, dto.userId);
+    this.communityGateway.removeFriendUser(dto.userId, dto.otherId);
   }
 
   async setFriend(dto: FriendRelationshipDto) {
@@ -84,10 +89,10 @@ export class FriendService {
       .orderBy('other.nickname', 'ASC')
       .getMany();
     return friendList.map((friend) => {
-      return {
-        status: this.statusService.getUserStatusById(friend.otherId),
-        ...friend.other,
-      };
+      return mergeUserAndStatus(
+        friend.other,
+        this.statusService.getUserStatusById(friend.otherId),
+      );
     });
   }
 
@@ -97,10 +102,10 @@ export class FriendService {
       where: { userId: dto.userId, otherId: dto.otherId },
     });
     if (!result) throw new NotFoundException();
-    return {
-      status: this.statusService.getUserStatusById(result.otherId),
-      ...result.other,
-    };
+    return mergeUserAndStatus(
+      result.other,
+      this.statusService.getUserStatusById(result.otherId),
+    );
   }
 
   throwRequestFriendError(result: RequestFriendResult) {

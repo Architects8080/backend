@@ -8,6 +8,7 @@ import {
   ParseIntPipe,
   Post,
   Req,
+  SerializeOptions,
   UseGuards,
 } from '@nestjs/common';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';

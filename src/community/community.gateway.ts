@@ -22,6 +22,8 @@ import { UserStatus } from './data/user-status';
 import { COMMUNITY_SOCKET_USER_SERVICE_PROVIDER } from './community.socket-user.service';
 import { Notification } from 'src/notification/entity/notification.entity';
 import { UserService } from 'src/user/user.service';
+import { deserialize, serialize } from 'class-transformer';
+import { mergeUserAndStatus } from './data/status-user';
 
 @UseGuards(JwtAuthGuard)
 @WebSocketGateway(4500, { namespace: 'community' })
@@ -96,7 +98,10 @@ export class CommunityGateway
     try {
       const friend = await this.userService.getUserById(friendId);
       const friendStatus = this.statusService.getUserStatusById(friendId);
-      client.emit('addFriendUser', { status: friendStatus, ...friend });
+      client.emit(
+        'addFriendUser',
+        JSON.parse(serialize(mergeUserAndStatus(friend, friendStatus))),
+      );
       client.join(`user:${friendId.toString()}`);
     } catch (error) {}
   }
