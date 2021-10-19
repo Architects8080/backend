@@ -1,4 +1,4 @@
-import { Inject, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { forwardRef, Inject, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import {
   ConnectedSocket,
@@ -15,6 +15,7 @@ import { cookieExtractor, JwtStrategy } from 'src/auth/strategy/jwt.strategy';
 import { SocketUser } from 'src/socket/socket-user';
 import { SocketUserService } from 'src/socket/socket-user.service';
 import { ChannelService } from './channel.service';
+import { ChannelType } from './channel.type';
 import { CreateChannelDto } from './dto/create-channel.dto';
 
 @UseGuards(JwtAuthGuard)
@@ -25,6 +26,7 @@ export class ChannelGateway
   constructor(
     private jwtService: JwtService,
     private jwtStrategy: JwtStrategy,
+    @Inject(forwardRef(() => ChannelService))
     private channelService: ChannelService,
     @Inject('CHANNEL_SOCKET_USER_SERVICE')
     private socketUserService: SocketUserService,
@@ -63,7 +65,8 @@ export class ChannelGateway
     @MessageBody(new ParseIntPipe()) roomId: any,
     @ConnectedSocket() client: SocketUser,
   ) {
-    if (this.channelService.channelMap.get(roomId).isProtected > 0) {
+    const channel = await this.channelService.getChannelById(roomId);
+    if (channel.type > ChannelType.PUBLIC) {
       //RoomType is Protected or Private
       const myChannel = await this.channelService.getMyChannel(client.user.id);
       if (!myChannel.find((myChannel) => myChannel.roomId == roomId)) {
@@ -72,7 +75,8 @@ export class ChannelGateway
       }
     }
     //RoomType is Public or Protected/Private & accepted case.
-    this.channelService.joinChannel(roomId, client, this.server);
+    client.join(roomId);
+    this.channelService.joinChannel(roomId, client.user);
   }
 
   @SubscribeMessage('leaveChannel')

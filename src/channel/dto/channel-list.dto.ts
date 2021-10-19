@@ -3,8 +3,7 @@ export class ChannelListDto {
 
   title: string;
 
-  // to change type
-  isProtected: number;
+  type: number;
 
   memberCount: number;
 }

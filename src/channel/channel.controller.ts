@@ -25,7 +25,7 @@ export class ChannelController {
   @Get()
   async getAllChannel() {
     const allChannels = await this.channelService.getAllChannel();
-    return allChannels.filter((channel) => channel.isProtected !== ChannelType.PRIVATE);
+    return allChannels.filter((channel) => channel.type !== ChannelType.PRIVATE);
   }
 
   @Get('me')
@@ -34,10 +34,8 @@ export class ChannelController {
   }
 
   @Get(':id')
-  getOneChannel(@Param('id', ParseIntPipe) roomId: number) {
-    console.log(`get one channel?`)
-    console.log(this.channelService.channelMap.get(roomId))
-    return this.channelService.channelMap.get(roomId);
+  getChannelById(@Param('id', ParseIntPipe) roomId: number) {
+    return this.channelService.getChannelById(roomId);
   }
 
   @Get('/members/:id')

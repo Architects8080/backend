@@ -12,6 +12,7 @@ import {
 import { User } from '../../user/entity/user.entity';
 import * as bcrypt from 'bcrypt';
 import { InternalServerErrorException } from '@nestjs/common';
+import { Exclude } from 'class-transformer';
 
 @Entity('channel')
 export class Channel {
@@ -24,11 +25,12 @@ export class Channel {
   @Column({ nullable: false })
   type: number;
 
+  @Exclude()
   @Column({ nullable: true })
   password: string;
 
-  @OneToMany(() => ChannelMember, (channelMember) => channelMember.channelID)
-  channelIDs: ChannelMember[];
+  @OneToMany(() => ChannelMember, (channelMember) => channelMember.channel)
+  memberList: ChannelMember[];
 
   @BeforeInsert()
   @BeforeUpdate()
@@ -44,7 +46,7 @@ export class Channel {
 
 @Entity('channel_member')
 export class ChannelMember {
-  @ManyToOne(() => Channel, (channel) => channel.channelIDs, {
+  @ManyToOne(() => Channel, (channel) => channel.memberList, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
   })
