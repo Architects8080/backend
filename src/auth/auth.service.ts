@@ -30,7 +30,6 @@ export class AuthService {
     newUser.id = user.id;
     newUser.nickname = user.login;
     newUser.intraLogin = user.login;
-    newUser.status = 0;
     newUser.avatar = user.image_url;
     newUser.ladderLevel = 0;
     newUser.ladderPoint = 0;

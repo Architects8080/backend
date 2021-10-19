@@ -7,6 +7,8 @@ import { GameStatus } from './data/game-status.data';
 import { GameRoom } from './data/gameroom.data';
 import { MatchPlayer } from '../match/entity/match-player.entity';
 import { Match } from '../match/entity/match.entity';
+import { GameType } from './data/game-type.data';
+import { User } from 'src/user/entity/user.entity';
 
 @Injectable()
 export class GameRepository {
@@ -55,20 +57,46 @@ export class GameRepository {
 
   async saveMatchPlayer(
     matchId: number,
+    user: User,
     player: GamePlayer,
     isLeft: boolean,
     isWinner: boolean,
+    ladderIncrease: number,
   ) {
     const matchPlayer = this.matchPlayerRepository.create();
-    const user = await this.userService.getUserById(player.id);
     matchPlayer.matchId = matchId;
     matchPlayer.userId = player.id;
     matchPlayer.score = player.score;
     matchPlayer.isLeft = isLeft;
     matchPlayer.ladderPoint = user.ladderPoint;
-    matchPlayer.ladderIncrease = 0; // TODO
+    matchPlayer.ladderIncrease = ladderIncrease;
     matchPlayer.isWinner = isWinner;
     this.matchPlayerRepository.insert(matchPlayer);
+    if (matchPlayer.ladderIncrease) {
+      user.ladderPoint += ladderIncrease;
+      this.userService.updateUser(user);
+    }
+  }
+
+  getEstimated(ratingDiff: number) {
+    // 예상 승률
+    return Number((1 / (1 + Math.pow(10, ratingDiff / 400))).toFixed(2));
+  }
+
+  calcPointIncrease(
+    gameType: GameType,
+    isWinner: boolean,
+    me: User,
+    enemy: User,
+  ): number {
+    if (gameType == GameType.CUSTOM) return 0;
+    // 점수 변동 상수
+    const K = 20;
+    const winning = isWinner ? 1 : 0;
+    const estimated = this.getEstimated(
+      Math.abs(me.ladderPoint - enemy.ladderPoint),
+    );
+    return Math.round(K * (winning - estimated));
   }
 
   async saveGameToDB(roomId: number) {
@@ -81,10 +109,40 @@ export class GameRepository {
     const isPlayer1Win = gameInfo.player1.score > gameInfo.player2.score;
     match.startAt = gameInfo.startAt;
     match.endAt = gameInfo.endAt;
-    match.gameTime = Math.round(gameTime); // second
+    match.gameTime = Math.round(gameTime);
     match.gameType = room.gameType;
+
+    const player1User = await this.userService.getUserById(gameInfo.player1.id);
+    const player2User = await this.userService.getUserById(gameInfo.player2.id);
+
+    const player1PointIncrease = this.calcPointIncrease(
+      match.gameType,
+      isPlayer1Win,
+      player1User,
+      player2User,
+    );
+    const player2PointIncrease = this.calcPointIncrease(
+      match.gameType,
+      !isPlayer1Win,
+      player2User,
+      player1User,
+    );
     await this.matchRepository.insert(match);
-    this.saveMatchPlayer(match.id, gameInfo.player1, true, isPlayer1Win);
-    this.saveMatchPlayer(match.id, gameInfo.player2, false, !isPlayer1Win);
+    this.saveMatchPlayer(
+      match.id,
+      player1User,
+      gameInfo.player1,
+      true,
+      isPlayer1Win,
+      player1PointIncrease,
+    );
+    this.saveMatchPlayer(
+      match.id,
+      player2User,
+      gameInfo.player2,
+      false,
+      !isPlayer1Win,
+      player2PointIncrease,
+    );
   }
 }

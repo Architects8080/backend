@@ -1,6 +1,7 @@
 import { Exclude, Transform, TransformFnParams } from 'class-transformer';
 import { configuration } from 'config/configuration';
-import { Block, Friend } from 'src/community/entity/community.entity';
+import { Block } from 'src/block/entity/block.entity';
+import { Friend } from 'src/friend/entity/friend.entity';
 import { Column, Entity, OneToMany, PrimaryColumn } from 'typeorm';
 
 @Entity('user')
@@ -27,9 +28,6 @@ export class User {
   })
   avatar: string;
 
-  @Column({ default: 0 })
-  status: number;
-
   @Exclude()
   @Column({ nullable: true, default: null })
   otpSecret: string;
@@ -40,9 +38,9 @@ export class User {
   @Column({ default: 0 })
   ladderLevel: number;
 
-  @OneToMany(() => Friend, rel => rel.other)
+  @OneToMany(() => Friend, (rel) => rel.other)
   friendList: Friend[];
 
-  @OneToMany(() => Block, rel => rel.other)
+  @OneToMany(() => Block, (rel) => rel.other)
   blockList: Block[];
 }

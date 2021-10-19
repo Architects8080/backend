@@ -15,6 +15,9 @@ import { DmModule } from './dm/dm.module';
 import { CommunityModule } from './community/community.module';
 import { ChannelModule } from './channel/channel.module';
 import { AchievementModule } from './achievement/achievement.module';
+import { NotificationModule } from './notification/notification.module';
+import { FriendModule } from './friend/friend.module';
+import { BlockModule } from './block/block.module';
 
 @Module({
   imports: [
@@ -55,6 +58,9 @@ import { AchievementModule } from './achievement/achievement.module';
     CommunityModule,
     ChannelModule,
     AchievementModule,
+    NotificationModule,
+    FriendModule,
+    BlockModule,
   ],
   controllers: [AppController],
   providers: [AppService],

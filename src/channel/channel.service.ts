@@ -139,7 +139,6 @@ export class ChannelService {
       id: client.user.id,
       nickname: client.user.nickname.toString(),
       avatar: client.user.avatar.toString(),
-      status: client.user.status,
     };
 
     const myChannel = await this.getMyChannel(client.user.id);
@@ -246,7 +245,6 @@ export class ChannelService {
       result.push({
         id: item['user'].id,
         avatar: item['user'].avatar,
-        status: item['user'].status,
         nickname: item['user'].nickname,
       });
     });

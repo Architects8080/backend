@@ -35,7 +35,9 @@ export class UserService {
   }
 
   async getUserByNickname(nickname: string) {
-    const user = await this.userRepository.findOne({ where: { nickname: nickname } });
+    const user = await this.userRepository.findOne({
+      where: { nickname: nickname },
+    });
     if (!user) throw new NotFoundException();
     return user;
   }
@@ -46,5 +48,9 @@ export class UserService {
 
   async updateAvatar(user: User, file: Express.Multer.File) {
     await this.userRepository.update(user.id, { avatar: file.filename });
+  }
+
+  async updateUser(user: User) {
+    await this.userRepository.update(user.id, user);
   }
 }
