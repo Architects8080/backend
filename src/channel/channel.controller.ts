@@ -15,6 +15,7 @@ import { RolesGuard } from 'src/channel/guard/roles.guard';
 import { ChannelService } from './channel.service';
 import { ChannelType } from './channel.type';
 import { CreateChannelDto } from './dto/create-channel.dto';
+import { InviteMemberDto } from './dto/invite-member.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -40,7 +41,6 @@ export class ChannelController {
 
   @Get('/members/:id')
   async getChannelMember(@Param('id', ParseIntPipe) roomId: number) {
-    console.log(`getChannelMember called`);
     return this.channelService.getChannelMember(roomId);
   }
 
@@ -65,11 +65,11 @@ export class ChannelController {
     return await this.channelService.updateChannel(roomId, updateData);
   }
 
-  @Get('invite/:id')
+  @Post('invite/:id')
   async inviteMember(
     @Param('id', ParseIntPipe) roomId: number,
-    @Body() nickname: string,
+    @Body() inviteData: InviteMemberDto,
   ) {
-    return await this.channelService.inviteMember(roomId, nickname);
+    return await this.channelService.inviteMember(roomId, inviteData);
   }
 }

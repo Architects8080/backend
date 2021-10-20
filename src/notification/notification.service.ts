@@ -7,6 +7,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ChannelService } from 'src/channel/channel.service';
 import { CommunityGateway } from 'src/community/community.gateway';
 import { FriendService } from 'src/friend/friend.service';
 import { UserService } from 'src/user/user.service';
@@ -23,6 +24,8 @@ export class NotificationService {
     private readonly friendService: FriendService,
     @Inject(forwardRef(() => CommunityGateway))
     private readonly communityGateway: CommunityGateway,
+    @Inject(forwardRef(() => ChannelService))
+    private readonly channelService: ChannelService,
     private readonly userService: UserService,
   ) {}
 
@@ -78,6 +81,8 @@ export class NotificationService {
         });
       }
       case NotificationType.CHANNEL: {
+        //TODO
+        return this.channelService.joinChannel(noti.targetId, noti.receiver);
       }
     }
   }

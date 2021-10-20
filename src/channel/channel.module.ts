@@ -1,6 +1,7 @@
 import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from 'src/auth/auth.module';
+import { NotificationModule } from 'src/notification/notification.module';
 import { UserModule } from 'src/user/user.module';
 import { ChannelRoleService } from './channel-role.service';
 import { ChannelController } from './channel.controller';
@@ -12,6 +13,7 @@ import { Channel, ChannelMember } from './entity/channel.entity';
 @Module({
   imports: [
     TypeOrmModule.forFeature([Channel, ChannelMember]),
+    forwardRef(() => NotificationModule),
     AuthModule,
     UserModule,
   ],
@@ -22,5 +24,6 @@ import { Channel, ChannelMember } from './entity/channel.entity';
     ChannelSocketUserService,
     ChannelRoleService,
   ],
+  exports: [ChannelService],
 })
 export class ChannelModule {}

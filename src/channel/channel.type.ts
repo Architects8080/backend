@@ -15,3 +15,10 @@ export enum ChannelType {
   PRIVATE,
   PROTECTED,
 }
+
+export enum Invite {
+  NONE = 0,
+  SUCCESS,
+  NOT_FOUND_USER,
+  ALREADY_JOINED,
+}

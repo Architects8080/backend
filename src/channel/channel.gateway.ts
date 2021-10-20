@@ -16,7 +16,6 @@ import { SocketUser } from 'src/socket/socket-user';
 import { SocketUserService } from 'src/socket/socket-user.service';
 import { ChannelService } from './channel.service';
 import { ChannelType } from './channel.type';
-import { CreateChannelDto } from './dto/create-channel.dto';
 
 @UseGuards(JwtAuthGuard)
 @WebSocketGateway(4501, { namespace: 'channel' })
@@ -65,6 +64,7 @@ export class ChannelGateway
     @MessageBody(new ParseIntPipe()) roomId: any,
     @ConnectedSocket() client: SocketUser,
   ) {
+    console.log(`joinChannel!`);
     const channel = await this.channelService.getChannelById(roomId);
     if (channel.type > ChannelType.PUBLIC) {
       //RoomType is Protected or Private
@@ -98,5 +98,9 @@ export class ChannelGateway
       name: client.user.nickname,
     };
     this.server.to(data.roomId).emit('msgToClient', payload);
+  }
+
+  async update() {
+    this.server.emit('updateChannel');
   }
 }
