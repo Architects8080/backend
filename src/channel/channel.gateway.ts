@@ -14,6 +14,8 @@ import { validate, Validator } from 'class-validator';
 import { Server } from 'socket.io';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { cookieExtractor, JwtStrategy } from 'src/auth/strategy/jwt.strategy';
+import { UserStatus } from 'src/community/data/user-status';
+import { StatusService } from 'src/community/status/status.service';
 import { SocketUser } from 'src/socket/socket-user';
 import { SocketUserService } from 'src/socket/socket-user.service';
 import { ChannelEventService } from './channel-event.service';
@@ -33,12 +35,19 @@ export class ChannelGateway
     @Inject(CHANNEL_SOCKET_USER_SERVICE_PROVIDER)
     private socketUserService: SocketUserService,
     private channelEventService: ChannelEventService,
+    private statusService: StatusService,
   ) {}
 
   @WebSocketServer() server: Server;
 
   afterInit(server: any) {
     this.channelEventService.server = this.server;
+    this.statusService.addListener(async (id: number, status: UserStatus) => {
+      const channelMemberList = await this.channelService.getChannelMemberListByUser(id);
+      channelMemberList.forEach((cm) => {
+        this.channelEventService.updateChannelMember(cm.channelId, cm);
+      })
+    })
   }
 
   async handleConnection(client: SocketUser) {

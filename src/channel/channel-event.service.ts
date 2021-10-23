@@ -1,16 +1,18 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';
+import { mergeUserAndStatus } from 'src/community/data/status-user';
+import { StatusService } from 'src/community/status/status.service';
 import { SocketUserService } from 'src/socket/socket-user.service';
 import { CHANNEL_SOCKET_USER_SERVICE_PROVIDER } from './channel.socket-user.service';
 import { CountChannel } from './data/count-channel.data';
 import { ChannelMember } from './entity/channel-member.entity';
-import { Channel } from './entity/channel.entity';
 
 @Injectable()
 export class ChannelEventService {
   constructor(
     @Inject(CHANNEL_SOCKET_USER_SERVICE_PROVIDER)
     private socketUserService: SocketUserService,
+    private statusService: StatusService,
   ) {}
 
   server: Server;
@@ -20,6 +22,7 @@ export class ChannelEventService {
   }
 
   addChannelMember(channelId: number, member: ChannelMember) {
+    member.user = mergeUserAndStatus(member.user, this.statusService.getUserStatusById(member.userId));
     this.toChannelRoom(channelId).emit('addChannelMember', channelId, member);
   }
 
@@ -32,6 +35,7 @@ export class ChannelEventService {
   }
 
   updateChannelMember(channelId: number, member: ChannelMember) {
+    member.user = mergeUserAndStatus(member.user, this.statusService.getUserStatusById(member.userId));
     this.toChannelRoom(channelId).emit(
       'updateChannelMember',
       channelId,

@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, InsertResult, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { mergeChannelAndCount } from './data/count-channel.data';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
@@ -21,8 +21,9 @@ import { NotificationEventService } from 'src/notification/event/notification-ev
 import { NotificationType } from 'src/notification/entity/notification.entity';
 import { UserService } from 'src/user/user.service';
 import { ChannelMessage } from './entity/channel-message.entity';
-import { channel } from 'diagnostics_channel';
 import { ChannelEventService } from './channel-event.service';
+import { StatusService } from 'src/community/status/status.service';
+import { mergeUserAndStatus } from 'src/community/data/status-user';
 
 @Injectable()
 export class ChannelService {
@@ -37,6 +38,7 @@ export class ChannelService {
     private channelMessageRepository: Repository<ChannelMessage>,
     private notificationEventService: NotificationEventService,
     private userService: UserService,
+    private statusService: StatusService,
     private readonly channelEventService: ChannelEventService,
   ) {}
 
@@ -60,6 +62,17 @@ export class ChannelService {
         return this.channelToCountChannel(ch);
       }),
     );
+  }
+
+  async getChannelMemberListByUser(userId: number) {
+    const channelMemberList = await this.channelMemberRepository.find({
+      relations: ['user'],
+      where: {
+        userId: userId,
+      },
+    });
+
+    return channelMemberList;
   }
 
   async getChannelListByUser(userId: number) {
@@ -146,8 +159,10 @@ export class ChannelService {
         'user.nickname': 'ASC',
       })
       .getOne();
-    // with status?
-    return channel.memberList;
+    return channel.memberList.map((member) => {
+      member.user = mergeUserAndStatus(member.user, this.statusService.getUserStatusById(member.userId));
+      return member;
+    })
   }
 
   async getCountChannelById(channelId: number) {
