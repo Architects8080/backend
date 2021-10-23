@@ -22,7 +22,10 @@ export class ChannelEventService {
   }
 
   addChannelMember(channelId: number, member: ChannelMember) {
-    member.user = mergeUserAndStatus(member.user, this.statusService.getUserStatusById(member.userId));
+    member.user = mergeUserAndStatus(
+      member.user,
+      this.statusService.getUserStatusById(member.userId),
+    );
     this.toChannelRoom(channelId).emit('addChannelMember', channelId, member);
   }
 
@@ -35,7 +38,10 @@ export class ChannelEventService {
   }
 
   updateChannelMember(channelId: number, member: ChannelMember) {
-    member.user = mergeUserAndStatus(member.user, this.statusService.getUserStatusById(member.userId));
+    member.user = mergeUserAndStatus(
+      member.user,
+      this.statusService.getUserStatusById(member.userId),
+    );
     this.toChannelRoom(channelId).emit(
       'updateChannelMember',
       channelId,

@@ -160,9 +160,12 @@ export class ChannelService {
       })
       .getOne();
     return channel.memberList.map((member) => {
-      member.user = mergeUserAndStatus(member.user, this.statusService.getUserStatusById(member.userId));
+      member.user = mergeUserAndStatus(
+        member.user,
+        this.statusService.getUserStatusById(member.userId),
+      );
       return member;
-    })
+    });
   }
 
   async getCountChannelById(channelId: number) {
@@ -307,6 +310,7 @@ export class ChannelService {
         role: MemberRole.ADMIN,
       },
     );
+    await this.emitUpdateChannelMember(channelId, memberId);
   }
 
   async revokeAdmin(channelId: number, memberId: number) {
@@ -319,6 +323,7 @@ export class ChannelService {
         role: MemberRole.MEMBER,
       },
     );
+    await this.emitUpdateChannelMember(channelId, memberId);
   }
 
   async getPenaltyMember(channelId: number, memberId: number) {

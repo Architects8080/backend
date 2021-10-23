@@ -43,11 +43,12 @@ export class ChannelGateway
   afterInit(server: any) {
     this.channelEventService.server = this.server;
     this.statusService.addListener(async (id: number, status: UserStatus) => {
-      const channelMemberList = await this.channelService.getChannelMemberListByUser(id);
+      const channelMemberList =
+        await this.channelService.getChannelMemberListByUser(id);
       channelMemberList.forEach((cm) => {
         this.channelEventService.updateChannelMember(cm.channelId, cm);
-      })
-    })
+      });
+    });
   }
 
   async handleConnection(client: SocketUser) {
