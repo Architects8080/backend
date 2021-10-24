@@ -254,7 +254,14 @@ export class ChannelService {
         channelId: channelId,
       });
     } catch (error) {
-      throw new NotFoundException();
+      switch (error.code) {
+        case '23505':
+          throw new ConflictException();
+        case '23503':
+          throw new NotFoundException();
+        default:
+          throw new BadRequestException();
+      }
     }
     this.emitJoinMember(userId, channelId);
   }
