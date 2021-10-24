@@ -42,9 +42,10 @@ export class CommunityGateway
 
   afterInit(server: any) {
     this.statusService.listenerList.push((id: number, status: UserStatus) => {
+      console.log(id);
       this.server
         .to(`user:${id.toString()}`)
-        .emit('chagneUserStatus', id, status);
+        .emit('changeUserStatus', id, status);
     });
     this.communityEventService.server = this.server;
   }

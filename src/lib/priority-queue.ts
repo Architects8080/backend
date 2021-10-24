@@ -1,4 +1,4 @@
-import { Heap } from './Heap';
+import { Heap } from './heap';
 
 export class PriorityQueue<T> extends Heap<T> {
   enqueue(value: T) {

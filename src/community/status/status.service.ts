@@ -7,7 +7,8 @@ import { COMMUNITY_SOCKET_USER_SERVICE_PROVIDER } from '../socket-user/community
 export class StatusService {
   constructor(
     @Inject(COMMUNITY_SOCKET_USER_SERVICE_PROVIDER)
-    private communitySocketUserService: SocketUserService) {}
+    private communitySocketUserService: SocketUserService,
+  ) {}
 
   userMap: Map<number, UserStatus> = new Map();
   listenerList: ((id: number, status: UserStatus) => void)[] = [];
@@ -22,14 +23,14 @@ export class StatusService {
     const isPlaying = this.getUserStatusById(id) == UserStatus.PLAYING;
     if (isPlaying) {
       if (this.communitySocketUserService.getSocketById(id))
-      status = UserStatus.ONLINE;
+        status = UserStatus.ONLINE;
       else status = UserStatus.OFFLINE;
     }
-    this.userMap.set(id, status);
     if (this.getUserStatusById(id) != status)
       this.listenerList.forEach((l) => {
         l(id, status);
       });
+    this.userMap.set(id, status);
   }
 
   addListener(listener: (id: number, status: UserStatus) => void) {
