@@ -33,11 +33,10 @@ export class ChannelMessage {
     { name: 'cid', referencedColumnName: 'channelId' },
   ])
   sender: ChannelMember;
-  @Column({nullable: true})
+  @Column({ nullable: true })
   userId: number;
-  @Column({nullable: true})
-  cid: number
-
+  @Column({ nullable: true })
+  cid: number;
 
   @Column()
   message: string;

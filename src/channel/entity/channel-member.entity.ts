@@ -35,7 +35,7 @@ export class ChannelMember {
 
   @ManyToOne(() => User, {
     onDelete: 'CASCADE',
-    onUpdate: 'CASCADE'
+    onUpdate: 'CASCADE',
   })
   @JoinColumn({ name: 'userId' })
   user: User;

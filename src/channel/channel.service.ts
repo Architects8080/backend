@@ -7,7 +7,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
-import { mergeChannelAndCount } from './data/count-channel.data';
+import { CountChannel, mergeChannelAndCount } from './data/count-channel.data';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { ChannelMember, MemberRole } from './entity/channel-member.entity';
@@ -131,7 +131,7 @@ export class ChannelService {
         this.channelEventService.removeChannelList(channelId);
       else this.channelEventService.addChannelList(countChannel);
     }
-    this.channelEventService.updateChannel(countChannel);
+    this.emitUpdateChannel(countChannel);
   }
 
   async isJoinChannel(memberId: number, channelId: number) {
@@ -174,12 +174,23 @@ export class ChannelService {
     );
   }
 
+  async emitUpdateChannel(channel: CountChannel) {
+    let memberList;
+    try {
+      memberList = await this.channelMemberRepository.find({
+        where: {
+          channelId: channel.id,
+        },
+      });
+    } catch (error) {}
+    this.channelEventService.updateChannel(channel, memberList);
+  }
+
   async emitJoinMember(userId: number, channelId: number) {
     try {
       const countChannel = await this.getCountChannelById(channelId);
 
-      if (countChannel.type != ChannelType.PRIVATE)
-        this.channelEventService.updateChannel(countChannel);
+      this.emitUpdateChannel(countChannel);
       this.channelEventService.addMyChannel(userId, countChannel);
       const newMember = await this.channelMemberRepository.findOne({
         relations: ['user'],
@@ -196,11 +207,12 @@ export class ChannelService {
     try {
       const countChannel = await this.getCountChannelById(channelId);
 
-      if (countChannel.type != ChannelType.PRIVATE)
-        this.channelEventService.updateChannel(countChannel);
+      this.emitUpdateChannel(countChannel);
       this.channelEventService.removeMyChannel(userId, channelId);
       this.channelEventService.removeChannelMember(channelId, userId);
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   async emitUpdateChannelMember(channelId: number, userId: number) {
@@ -462,8 +474,7 @@ export class ChannelService {
         id: insertResult.identifiers[0].id,
       },
     });
-    if(result.sender)
-      result.sender = result.sender.user;
+    if (result.sender) result.sender = result.sender.user;
     return result;
   }
 }
