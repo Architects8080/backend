@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { serialize } from 'class-transformer';
 import { PriorityQueue } from 'src/lib/priority-queue';
 import { SocketUserService } from 'src/socket/socket-user.service';
 import { User } from 'src/user/entity/user.entity';
@@ -24,11 +25,15 @@ export class MatchmakerService {
   }
 
   sendInviteRoom(userId: number, targetId: number, roomId: number) {
-    const user = this.socketUserService.getSocketById(userId);
-    const target = this.socketUserService.getSocketById(targetId);
+    const userSocket = this.socketUserService.getSocketById(userId);
+    const targetSocket = this.socketUserService.getSocketById(targetId);
+
+    const user: User = JSON.parse(serialize(userSocket.user));
+    const target: User = JSON.parse(serialize(targetSocket.user));
+
     if (user && target) {
-      target.emit('invite', user.user.nickname, user.user.avatar, roomId, true);
-      user.emit('invite', target.user.nickname, target.user.avatar, roomId, true);
+      targetSocket.emit('invite', user.nickname, user.avatar, roomId, true);
+      userSocket.emit('invite', target.nickname, target.avatar, roomId, true);
       return true;
     }
     return false;
