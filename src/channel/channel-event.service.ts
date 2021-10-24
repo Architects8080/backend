@@ -7,6 +7,7 @@ import { SocketUserService } from 'src/socket/socket-user.service';
 import { CHANNEL_SOCKET_USER_SERVICE_PROVIDER } from './channel.socket-user.service';
 import { CountChannel } from './data/count-channel.data';
 import { ChannelMember } from './entity/channel-member.entity';
+import { ChannelType } from './entity/channel.entity';
 
 @Injectable()
 export class ChannelEventService {
@@ -27,7 +28,11 @@ export class ChannelEventService {
       member.user,
       this.statusService.getUserStatusById(member.userId),
     );
-    this.toChannelRoom(channelId).emit('addChannelMember', channelId, JSON.parse(serialize(member)));
+    this.toChannelRoom(channelId).emit(
+      'addChannelMember',
+      channelId,
+      JSON.parse(serialize(member)),
+    );
   }
 
   removeChannelMember(channelId: number, userId: number) {
@@ -60,8 +65,16 @@ export class ChannelEventService {
     if (memberSocket) memberSocket.emit('unmuteMember', channelId);
   }
 
-  updateChannel(channel: CountChannel) {
-    this.server.emit('updateChannel', JSON.parse(serialize(channel)));
+  updateChannel(channel: CountChannel, memberList?: ChannelMember[]) {
+    if (channel.type == ChannelType.PRIVATE && memberList) {
+      memberList.forEach((member) => {
+        const memberSocket = this.socketUserService.getSocketById(
+          member.userId,
+        );
+        if (memberSocket)
+          memberSocket.emit('updateChannel', JSON.parse(serialize(channel)));
+      });
+    } else this.server.emit('updateChannel', JSON.parse(serialize(channel)));
   }
 
   deleteChannel(channelId: number) {
