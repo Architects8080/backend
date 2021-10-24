@@ -286,7 +286,6 @@ export class ChannelService {
       throw new BadRequestException('Cannot invite yourself.');
     if (!(await this.userService.getUserById(receiverId)))
       throw new NotFoundException('Not found user');
-    console;
     if (await this.isJoinChannel(receiverId, channelId))
       throw new ConflictException('Already channel member');
     const result = await this.notificationEventService.setNotification(
@@ -439,6 +438,7 @@ export class ChannelService {
     if (await this.isMuteMember(channelId, memberId)) return;
     const insertResult = await this.channelMessageRepository.insert({
       userId: memberId,
+      cid: channelId,
       channelId: channelId,
       message: message,
     });
@@ -448,7 +448,8 @@ export class ChannelService {
         id: insertResult.identifiers[0].id,
       },
     });
-    result.sender = result.sender.user;
+    if(result.sender)
+      result.sender = result.sender.user;
     return result;
   }
 }

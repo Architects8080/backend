@@ -15,18 +15,6 @@ export class ChannelMessage {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => ChannelMember, {
-    onDelete: 'SET NULL',
-    onUpdate: 'NO ACTION',
-  })
-  @JoinColumn([
-    { name: 'userId', referencedColumnName: 'userId' },
-    { name: 'channelId', referencedColumnName: 'channelId' },
-  ])
-  sender: ChannelMember;
-  @Column()
-  userId: number;
-
   @ManyToOne(() => Channel, (channel) => channel.messageList, {
     onDelete: 'CASCADE',
     onUpdate: 'CASCADE',
@@ -35,6 +23,21 @@ export class ChannelMessage {
   channel: Channel;
   @Column()
   channelId: number;
+
+  @ManyToOne(() => ChannelMember, {
+    onDelete: 'SET NULL',
+    onUpdate: 'CASCADE',
+  })
+  @JoinColumn([
+    { name: 'userId', referencedColumnName: 'userId' },
+    { name: 'cid', referencedColumnName: 'channelId' },
+  ])
+  sender: ChannelMember;
+  @Column({nullable: true})
+  userId: number;
+  @Column({nullable: true})
+  cid: number
+
 
   @Column()
   message: string;

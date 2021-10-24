@@ -10,6 +10,7 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { serialize } from 'class-transformer';
 import { validate, Validator } from 'class-validator';
 import { Server } from 'socket.io';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
@@ -78,7 +79,7 @@ export class ChannelGateway
   @SubscribeMessage('subscribeChannel')
   async subscribeChannel(
     @ConnectedSocket() client: SocketUser,
-    channelId: number,
+    @MessageBody() channelId: number,
   ) {
     if (this.channelService.isJoinChannel(client.user.id, channelId))
       client.join(`channel:${channelId}`);
@@ -87,7 +88,7 @@ export class ChannelGateway
   @SubscribeMessage('unsubscribeChannel')
   async unsubscribeChannel(
     @ConnectedSocket() client: SocketUser,
-    channelId: number,
+    @MessageBody() channelId: number,
   ) {
     client.leave(`channel:${channelId}`);
   }
@@ -95,15 +96,16 @@ export class ChannelGateway
   @SubscribeMessage('messageToServer')
   async receiveMessage(
     @ConnectedSocket() client: SocketUser,
-    dto: ChannelMessageDto,
+    @MessageBody() dto: ChannelMessageDto,
   ) {
     const validatorError = await validate(dto);
     if (validatorError.length > 0) return;
-    const result = await this.channelService.createMessage(
+    let result = await this.channelService.createMessage(
       dto.channelId,
       client.user.id,
       dto.message,
     );
+    result = JSON.parse(serialize(result));
     this.server.to(`channel:${dto.channelId}`).emit('messageToClient', result);
   }
 }

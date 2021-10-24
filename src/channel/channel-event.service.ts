@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { serialize } from 'class-transformer';
 import { Server } from 'socket.io';
 import { mergeUserAndStatus } from 'src/community/data/status-user';
 import { StatusService } from 'src/community/status/status.service';
@@ -26,7 +27,7 @@ export class ChannelEventService {
       member.user,
       this.statusService.getUserStatusById(member.userId),
     );
-    this.toChannelRoom(channelId).emit('addChannelMember', channelId, member);
+    this.toChannelRoom(channelId).emit('addChannelMember', channelId, JSON.parse(serialize(member)));
   }
 
   removeChannelMember(channelId: number, userId: number) {
@@ -45,7 +46,7 @@ export class ChannelEventService {
     this.toChannelRoom(channelId).emit(
       'updateChannelMember',
       channelId,
-      member,
+      JSON.parse(serialize(member)),
     );
   }
 
@@ -60,7 +61,7 @@ export class ChannelEventService {
   }
 
   updateChannel(channel: CountChannel) {
-    this.server.emit('updateChannel', channel);
+    this.server.emit('updateChannel', JSON.parse(serialize(channel)));
   }
 
   deleteChannel(channelId: number) {
@@ -68,7 +69,7 @@ export class ChannelEventService {
   }
 
   addChannelList(channel: CountChannel) {
-    this.server.emit('addChannel', channel);
+    this.server.emit('addChannel', JSON.parse(serialize(channel)));
   }
 
   removeChannelList(channelId: number) {
@@ -77,7 +78,7 @@ export class ChannelEventService {
 
   addMyChannel(userId: number, channel: CountChannel) {
     const socket = this.socketUserService.getSocketById(userId);
-    if (socket) socket.emit('addMyChannel', channel);
+    if (socket) socket.emit('addMyChannel', JSON.parse(serialize(channel)));
   }
 
   removeMyChannel(userId: number, channelId: number) {
