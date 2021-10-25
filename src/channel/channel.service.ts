@@ -223,8 +223,11 @@ export class ChannelService {
           channelId: channelId,
         },
       });
+      if (!member.user)
+        member.user = await this.userService.getUserById(userId);
       this.channelEventService.updateChannelMember(channelId, member);
-    } catch (error) {}
+    } catch (error) {
+    }
   }
 
   async acceptChannelInvitation(userId: number, channelId: number) {
