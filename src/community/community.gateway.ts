@@ -67,7 +67,7 @@ export class CommunityGateway
       if (this.statusService.getUserStatusById(user.id) != UserStatus.PLAYING)
         this.statusService.setUserStatusById(user.id, UserStatus.ONLINE);
     } catch (error) {
-      console.log(error);
+      console.log(`[Community Gateway] : `, error);
       client.disconnect(true);
     }
   }

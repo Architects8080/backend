@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { SocketUser } from 'src/socket/socket-user';
 
 @Injectable()
@@ -15,7 +15,10 @@ export class SocketUserService {
   }
 
   addSocket(socket: SocketUser) {
-    this.socketUser.set(socket.user.id, socket);
+    // if (this.socketUser.has(socket.user.id))
+    //   throw new ConflictException(); //TODO: how to block user?
+    // else
+      this.socketUser.set(socket.user.id, socket);
   }
 
   removeSocket(socket: SocketUser) {

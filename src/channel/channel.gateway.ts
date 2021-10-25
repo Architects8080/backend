@@ -61,6 +61,7 @@ export class ChannelGateway
       client.user = user;
       this.socketUserService.addSocket(client);
     } catch (error) {
+      console.log(`[Channel Gateway] : `, error);
       client.disconnect(true);
     }
   }
@@ -105,7 +106,10 @@ export class ChannelGateway
       client.user.id,
       dto.message,
     );
-    result = JSON.parse(serialize(result));
-    this.server.to(`channel:${dto.channelId}`).emit('messageToClient', result);
+    if (result) {
+      result = JSON.parse(serialize(result));
+      this.server.to(`channel:${dto.channelId}`).emit('messageToClient', result);
+    }
+
   }
 }

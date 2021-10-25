@@ -62,7 +62,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       this.socketUserService.addSocket(client);
     } catch (error) {
-      console.log(error);
+      console.log(`[Game Gateway] : `, error);
       client.disconnect(true);
     }
   }
