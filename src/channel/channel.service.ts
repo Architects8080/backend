@@ -452,6 +452,9 @@ export class ChannelService {
       where: {
         channelId: channelId,
       },
+      order: {
+        timestamp: "ASC",
+      },
     });
     return result.map((cm: any) => {
       if (cm.sender) cm.sender = cm.sender.user;
