@@ -210,6 +210,7 @@ export class ChannelService {
       this.emitUpdateChannel(countChannel);
       this.channelEventService.removeMyChannel(userId, channelId);
       this.channelEventService.removeChannelMember(channelId, userId);
+      this.channelEventService.leaveChannel(channelId, userId);
     } catch (error) {
       console.log(error);
     }
@@ -384,6 +385,7 @@ export class ChannelService {
         this.emitUnmuteMember(channelId, memberId);
         return false;
       }
+      this.emitMuteMember(channelId, memberId);
       return true;
     }
     return false;

@@ -98,4 +98,9 @@ export class ChannelEventService {
     const socket = this.socketUserService.getSocketById(userId);
     if (socket) socket.emit('removeMyChannel', channelId);
   }
+
+  leaveChannel(channelId: number, userId: number) {
+    const socket = this.socketUserService.getSocketById(userId);
+    if (socket) socket.leave(`channel:${channelId}`);
+  }
 }
