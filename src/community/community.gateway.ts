@@ -42,7 +42,6 @@ export class CommunityGateway
 
   afterInit(server: any) {
     this.statusService.listenerList.push((id: number, status: UserStatus) => {
-      console.log(id);
       this.server
         .to(`user:${id.toString()}`)
         .emit('changeUserStatus', id, status);
@@ -67,7 +66,7 @@ export class CommunityGateway
       if (this.statusService.getUserStatusById(user.id) != UserStatus.PLAYING)
         this.statusService.setUserStatusById(user.id, UserStatus.ONLINE);
     } catch (error) {
-      console.log(error);
+      console.log(`[Community Gateway] : `, error);
       client.disconnect(true);
     }
   }

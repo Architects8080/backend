@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from 'src/auth/auth.module';
+import { StatusModule } from 'src/community/status/status.module';
 import { NotificationEventModule } from 'src/notification/event/notification-event.module';
 import { UserModule } from 'src/user/user.module';
 import { ChannelEventService } from './channel-event.service';
@@ -25,6 +26,7 @@ import { Channel } from './entity/channel.entity';
     AuthModule,
     UserModule,
     NotificationEventModule,
+    StatusModule,
   ],
   controllers: [ChannelController],
   providers: [

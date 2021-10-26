@@ -6,8 +6,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, InsertResult, Repository } from 'typeorm';
-import { mergeChannelAndCount } from './data/count-channel.data';
+import { In, Repository } from 'typeorm';
+import { CountChannel, mergeChannelAndCount } from './data/count-channel.data';
 import { CreateChannelDto } from './dto/create-channel.dto';
 import { UpdateChannelDto } from './dto/update-channel.dto';
 import { ChannelMember, MemberRole } from './entity/channel-member.entity';
@@ -21,8 +21,9 @@ import { NotificationEventService } from 'src/notification/event/notification-ev
 import { NotificationType } from 'src/notification/entity/notification.entity';
 import { UserService } from 'src/user/user.service';
 import { ChannelMessage } from './entity/channel-message.entity';
-import { channel } from 'diagnostics_channel';
 import { ChannelEventService } from './channel-event.service';
+import { StatusService } from 'src/community/status/status.service';
+import { mergeUserAndStatus } from 'src/community/data/status-user';
 
 @Injectable()
 export class ChannelService {
@@ -37,6 +38,7 @@ export class ChannelService {
     private channelMessageRepository: Repository<ChannelMessage>,
     private notificationEventService: NotificationEventService,
     private userService: UserService,
+    private statusService: StatusService,
     private readonly channelEventService: ChannelEventService,
   ) {}
 
@@ -60,6 +62,17 @@ export class ChannelService {
         return this.channelToCountChannel(ch);
       }),
     );
+  }
+
+  async getChannelMemberListByUser(userId: number) {
+    const channelMemberList = await this.channelMemberRepository.find({
+      relations: ['user'],
+      where: {
+        userId: userId,
+      },
+    });
+
+    return channelMemberList;
   }
 
   async getChannelListByUser(userId: number) {
@@ -118,7 +131,7 @@ export class ChannelService {
         this.channelEventService.removeChannelList(channelId);
       else this.channelEventService.addChannelList(countChannel);
     }
-    this.channelEventService.updateChannel(countChannel);
+    this.emitUpdateChannel(countChannel);
   }
 
   async isJoinChannel(memberId: number, channelId: number) {
@@ -146,8 +159,13 @@ export class ChannelService {
         'user.nickname': 'ASC',
       })
       .getOne();
-    // with status?
-    return channel.memberList;
+    return channel.memberList.map((member) => {
+      member.user = mergeUserAndStatus(
+        member.user,
+        this.statusService.getUserStatusById(member.userId),
+      );
+      return member;
+    });
   }
 
   async getCountChannelById(channelId: number) {
@@ -156,12 +174,23 @@ export class ChannelService {
     );
   }
 
+  async emitUpdateChannel(channel: CountChannel) {
+    let memberList;
+    try {
+      memberList = await this.channelMemberRepository.find({
+        where: {
+          channelId: channel.id,
+        },
+      });
+    } catch (error) {}
+    this.channelEventService.updateChannel(channel, memberList);
+  }
+
   async emitJoinMember(userId: number, channelId: number) {
     try {
       const countChannel = await this.getCountChannelById(channelId);
 
-      if (countChannel.type != ChannelType.PRIVATE)
-        this.channelEventService.updateChannel(countChannel);
+      this.emitUpdateChannel(countChannel);
       this.channelEventService.addMyChannel(userId, countChannel);
       const newMember = await this.channelMemberRepository.findOne({
         relations: ['user'],
@@ -178,11 +207,13 @@ export class ChannelService {
     try {
       const countChannel = await this.getCountChannelById(channelId);
 
-      if (countChannel.type != ChannelType.PRIVATE)
-        this.channelEventService.updateChannel(countChannel);
+      this.emitUpdateChannel(countChannel);
       this.channelEventService.removeMyChannel(userId, channelId);
       this.channelEventService.removeChannelMember(channelId, userId);
-    } catch (error) {}
+      this.channelEventService.leaveChannel(channelId, userId);
+    } catch (error) {
+      console.log(error);
+    }
   }
 
   async emitUpdateChannelMember(channelId: number, userId: number) {
@@ -193,8 +224,11 @@ export class ChannelService {
           channelId: channelId,
         },
       });
+      if (!member.user)
+        member.user = await this.userService.getUserById(userId);
       this.channelEventService.updateChannelMember(channelId, member);
-    } catch (error) {}
+    } catch (error) {
+    }
   }
 
   async acceptChannelInvitation(userId: number, channelId: number) {
@@ -208,7 +242,14 @@ export class ChannelService {
         channelId: channelId,
       });
     } catch (error) {
-      throw new NotFoundException();
+      switch (error.code) {
+        case '23505':
+          throw new ConflictException();
+        case '23503':
+          throw new NotFoundException();
+        default:
+          throw new BadRequestException();
+      }
     }
     this.emitJoinMember(userId, channelId);
   }
@@ -236,7 +277,14 @@ export class ChannelService {
         channelId: channelId,
       });
     } catch (error) {
-      throw new NotFoundException();
+      switch (error.code) {
+        case '23505':
+          throw new ConflictException();
+        case '23503':
+          throw new NotFoundException();
+        default:
+          throw new BadRequestException();
+      }
     }
     this.emitJoinMember(userId, channelId);
   }
@@ -268,7 +316,6 @@ export class ChannelService {
       throw new BadRequestException('Cannot invite yourself.');
     if (!(await this.userService.getUserById(receiverId)))
       throw new NotFoundException('Not found user');
-    console;
     if (await this.isJoinChannel(receiverId, channelId))
       throw new ConflictException('Already channel member');
     const result = await this.notificationEventService.setNotification(
@@ -292,6 +339,7 @@ export class ChannelService {
         role: MemberRole.ADMIN,
       },
     );
+    await this.emitUpdateChannelMember(channelId, memberId);
   }
 
   async revokeAdmin(channelId: number, memberId: number) {
@@ -304,6 +352,7 @@ export class ChannelService {
         role: MemberRole.MEMBER,
       },
     );
+    await this.emitUpdateChannelMember(channelId, memberId);
   }
 
   async getPenaltyMember(channelId: number, memberId: number) {
@@ -336,6 +385,7 @@ export class ChannelService {
         this.emitUnmuteMember(channelId, memberId);
         return false;
       }
+      this.emitMuteMember(channelId, memberId);
       return true;
     }
     return false;
@@ -407,6 +457,9 @@ export class ChannelService {
       where: {
         channelId: channelId,
       },
+      order: {
+        timestamp: "ASC",
+      },
     });
     return result.map((cm: any) => {
       if (cm.sender) cm.sender = cm.sender.user;
@@ -419,6 +472,7 @@ export class ChannelService {
     if (await this.isMuteMember(channelId, memberId)) return;
     const insertResult = await this.channelMessageRepository.insert({
       userId: memberId,
+      cid: channelId,
       channelId: channelId,
       message: message,
     });
@@ -428,7 +482,7 @@ export class ChannelService {
         id: insertResult.identifiers[0].id,
       },
     });
-    result.sender = result.sender.user;
+    if (result.sender) result.sender = result.sender.user;
     return result;
   }
 }

@@ -10,10 +10,13 @@ import {
   WebSocketGateway,
   WebSocketServer,
 } from '@nestjs/websockets';
+import { serialize } from 'class-transformer';
 import { validate, Validator } from 'class-validator';
 import { Server } from 'socket.io';
 import { JwtAuthGuard } from 'src/auth/guard/jwt-auth.guard';
 import { cookieExtractor, JwtStrategy } from 'src/auth/strategy/jwt.strategy';
+import { UserStatus } from 'src/community/data/user-status';
+import { StatusService } from 'src/community/status/status.service';
 import { SocketUser } from 'src/socket/socket-user';
 import { SocketUserService } from 'src/socket/socket-user.service';
 import { ChannelEventService } from './channel-event.service';
@@ -33,12 +36,20 @@ export class ChannelGateway
     @Inject(CHANNEL_SOCKET_USER_SERVICE_PROVIDER)
     private socketUserService: SocketUserService,
     private channelEventService: ChannelEventService,
+    private statusService: StatusService,
   ) {}
 
   @WebSocketServer() server: Server;
 
   afterInit(server: any) {
     this.channelEventService.server = this.server;
+    this.statusService.addListener(async (id: number, status: UserStatus) => {
+      const channelMemberList =
+        await this.channelService.getChannelMemberListByUser(id);
+      channelMemberList.forEach((cm) => {
+        this.channelEventService.updateChannelMember(cm.channelId, cm);
+      });
+    });
   }
 
   async handleConnection(client: SocketUser) {
@@ -50,6 +61,7 @@ export class ChannelGateway
       client.user = user;
       this.socketUserService.addSocket(client);
     } catch (error) {
+      console.log(`[Channel Gateway] : `, error);
       client.disconnect(true);
     }
   }
@@ -68,7 +80,7 @@ export class ChannelGateway
   @SubscribeMessage('subscribeChannel')
   async subscribeChannel(
     @ConnectedSocket() client: SocketUser,
-    channelId: number,
+    @MessageBody() channelId: number,
   ) {
     if (this.channelService.isJoinChannel(client.user.id, channelId))
       client.join(`channel:${channelId}`);
@@ -77,7 +89,7 @@ export class ChannelGateway
   @SubscribeMessage('unsubscribeChannel')
   async unsubscribeChannel(
     @ConnectedSocket() client: SocketUser,
-    channelId: number,
+    @MessageBody() channelId: number,
   ) {
     client.leave(`channel:${channelId}`);
   }
@@ -85,15 +97,19 @@ export class ChannelGateway
   @SubscribeMessage('messageToServer')
   async receiveMessage(
     @ConnectedSocket() client: SocketUser,
-    dto: ChannelMessageDto,
+    @MessageBody() dto: ChannelMessageDto,
   ) {
     const validatorError = await validate(dto);
     if (validatorError.length > 0) return;
-    const result = await this.channelService.createMessage(
+    let result = await this.channelService.createMessage(
       dto.channelId,
       client.user.id,
       dto.message,
     );
-    this.server.to(`channel:${dto.channelId}`).emit('messageToClient', result);
+    if (result) {
+      result = JSON.parse(serialize(result));
+      this.server.to(`channel:${dto.channelId}`).emit('messageToClient', result);
+    }
+
   }
 }

@@ -23,6 +23,7 @@ import { User } from 'src/user/entity/user.entity';
 import { UserStatus } from 'src/community/data/user-status';
 import { UserService } from 'src/user/user.service';
 import { StatusService } from 'src/community/status/status.service';
+import { serialize } from 'class-transformer';
 
 @UseGuards(JwtAuthGuard)
 @WebSocketGateway(4000, { namespace: 'game' })
@@ -61,7 +62,7 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       this.socketUserService.addSocket(client);
     } catch (error) {
-      console.log(error);
+      console.log(`[Game Gateway] : `, error);
       client.disconnect(true);
     }
   }
@@ -98,11 +99,12 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
     const targetUserId = data[0];
     const mapSetting = data[1];
     const targetUser = this.socketUserService.getSocketById(targetUserId);
+    const clientUser = JSON.parse(serialize(client.user));
     // queue에서 대기중인 경우 초대를 못 보내게 합니다.
     if (this.matchmakerService.isWaiting(client.user)) return;
     if (targetUser) {
       const roomId: number = this.gameRoomService.invite(
-        client.user.id,
+        clientUser.id,
         targetUser.user.id,
         mapSetting,
       );
@@ -114,8 +116,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
       }
       targetUser.emit(
         'invite',
-        client.user.nickname,
-        client.user.avatar,
+        clientUser.nickname,
+        clientUser.avatar,
         roomId,
         false,
       );
@@ -177,7 +179,8 @@ export class GameGateway implements OnGatewayConnection, OnGatewayDisconnect {
             winner = gameInfo.player2;
             loser = gameInfo.player1;
           }
-          const winnerUser = await this.userService.getUserById(winner.id);
+          let winnerUser = await this.userService.getUserById(winner.id);
+          winnerUser = JSON.parse(serialize(winnerUser));
           this.statusService.setUserStatusById(
             gameInfo.player1.id,
             UserStatus.ONLINE,
