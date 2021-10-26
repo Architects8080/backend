@@ -32,7 +32,7 @@ export class AuthService {
     newUser.intraLogin = user.login;
     newUser.avatar = user.image_url;
     newUser.ladderLevel = 0;
-    newUser.ladderPoint = 0;
+    newUser.ladderPoint = 1000;
 
     //임시 session에 유저 저장
     session.newUser = newUser;
